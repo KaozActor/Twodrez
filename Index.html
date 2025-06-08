@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Tabuleiro - Protótipo</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 2px solid #333;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .cell:nth-child(odd) { background-color: #eee; }
+        .cell:nth-child(even) { background-color: #ccc; }
+
+        #controls {
+            margin-top: 20px;
+        }
+
+        #log {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 500px;
+            background: #fff;
+            border: 1px solid #333;
+            padding: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Jogo de Tabuleiro - Protótipo</h1>
+    <div id="board"></div>
+    <div id="controls">
+        <p>Turno: <span id="currentPlayer">1</span> | Pontos restantes: <span id="points">4</span></p>
+        <button id="endTurn">Encerrar Turno</button>
+    </div>
+    <div id="log"></div>
+
+    <script>
+        const board = document.getElementById('board');
+        const log = document.getElementById('log');
+        const currentPlayerSpan = document.getElementById('currentPlayer');
+        const pointsSpan = document.getElementById('points');
+
+        let currentPlayer = 1;
+        let selectedCell = null;
+        let pointsLeft = 4;
+
+        // Peças iniciais (letras para protótipo)
+        const initialBoard = [
+            ['G', 'M', 'E', 'g', 'e', 'M', 'G', 'A'],
+            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+            ['a', 'g', 'm', 'e', 'G', 'm', 'g', 'A']
+        ];
+
+        // Cria o tabuleiro
+        function createBoard() {
+            board.innerHTML = '';
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.textContent = initialBoard[row][col];
+
+                    cell.addEventListener('click', () => handleCellClick(cell));
+
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        // Lógica de clique nas casas
+        function handleCellClick(cell) {
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            const piece = initialBoard[row][col];
+
+            if (selectedCell) {
+                // Tentativa de movimento
+                const fromRow = parseInt(selectedCell.dataset.row);
+                const fromCol = parseInt(selectedCell.dataset.col);
+                const fromPiece = initialBoard[fromRow][fromCol];
+
+                if (isValidMove(fromRow, fromCol, row, col, fromPiece)) {
+                    if (pointsLeft >= getMoveCost(fromPiece)) {
+                        movePiece(fromRow, fromCol, row, col);
+                        pointsLeft -= getMoveCost(fromPiece);
+                        updatePoints();
+                        logMove(fromPiece, fromRow, fromCol, row, col);
+                    } else {
+                        alert('Pontos insuficientes!');
+                    }
+                } else {
+                    alert('Movimento inválido!');
+                }
+
+                selectedCell.classList.remove('selected');
+                selectedCell = null;
+            } else {
+                // Selecionar peça (somente do jogador atual)
+                if ((currentPlayer === 1 && piece === piece.toUpperCase() && piece !== '') ||
+                    (currentPlayer === 2 && piece === piece.toLowerCase() && piece !== '')) {
+                    selectedCell = cell;
+                    selectedCell.classList.add('selected');
+                }
+            }
+        }
+
+        // Movimento válido (simplificado - ajustaremos depois para regras reais)
+        function isValidMove(fromRow, fromCol, toRow, toCol, piece) {
+            const dr = Math.abs(toRow - fromRow);
+            const dc = Math.abs(toCol - fromCol);
+
+            // Impede mover para a mesma casa
+            if (dr === 0 && dc === 0) return false;
+
+            // Exemplo simplificado: cada peça pode se mover 1 casa para qualquer direção (só protótipo)
+            return dr <= 1 && dc <= 1;
+        }
+
+        // Custo de movimento por peça (provisório)
+        function getMoveCost(piece) {
+            const p = piece.toUpperCase();
+            switch (p) {
+                case 'G': return 3; // General
+                case 'M': return 2; // Místico
+                case 'E': return 2; // Emissária
+                case 'A': return 1; // Assassino
+                case 'P': return 1; // Peão
+                case 'G': return 1; // Guardião
+                default: return 1;
+            }
+        }
+
+        // Executa o movimento
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            initialBoard[toRow][toCol] = initialBoard[fromRow][fromCol];
+            initialBoard[fromRow][fromCol] = '';
+            createBoard();
+
+            // Verifica vitória
+            if (initialBoard[toRow][toCol].toUpperCase() === 'G' && (fromRow !== toRow || fromCol !== toCol)) {
+                if (initialBoard[toRow][toCol] === 'G' && currentPlayer === 2) {
+                    alert('Vitória do Jogador 1!');
+                    resetGame();
+                } else if (initialBoard[toRow][toCol] === 'g' && currentPlayer === 1) {
+                    alert('Vitória do Jogador 2!');
+                    resetGame();
+                }
+            }
+        }
+
+        // Atualiza os pontos na tela
+        function updatePoints() {
+            pointsSpan.textContent = pointsLeft;
+        }
+
+        // Log de jogadas
+        function logMove(piece, fromRow, fromCol, toRow, toCol) {
+            const entry = `${piece} de (${fromRow + 1},${fromCol + 1}) para (${toRow + 1},${toCol + 1})`;
+            log.innerHTML += entry + '<br>';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Encerrar turno
+        document.getElementById('endTurn').addEventListener('click', () => {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            currentPlayerSpan.textContent = currentPlayer;
+            pointsLeft = 4;
+            updatePoints();
+            selectedCell = null;
+            log.innerHTML += `<strong>--- Fim do turno ---</strong><br>`;
+            log.scrollTop = log.scrollHeight;
+        });
+
+        // Reinicia o jogo
+        function resetGame() {
+            location.reload();
+        }
+
+        // Inicializa
+        createBoard();
+        updatePoints();
+    </script>
+</body>
+</html>
